@@ -1,0 +1,33 @@
+/* ===============================
+   STEP 3 – SUMMARY
+=============================== */
+
+.summary-card {
+    border-radius: 14px;
+}
+
+/* Row styling */
+.summary-row {
+    padding: 18px 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+/* Labels */
+.summary-row strong {
+    font-weight: 600;
+}
+
+/* Values */
+#summaryProducts,
+#summaryFile {
+    font-size: 14px;
+}
+
+/* Confirm Button */
+#confirmUploadBtn {
+    padding: 8px 20px;
+}

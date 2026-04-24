@@ -1,0 +1,56 @@
+/* ===============================
+   STEP 2 – FILE SELECTION
+=============================== */
+
+/* Upload Box */
+.upload-box {
+    border: 2px dashed #cfd4dc;
+    border-radius: 16px;
+    padding: 60px 20px;
+    text-align: center;
+    background: #f8f9fa;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+/* Hover */
+.upload-box:hover {
+    border-color: #198754;
+    background-color: #eef9f2;
+}
+
+/* Drag Active */
+.upload-box.drag-active {
+    border-color: #198754;
+    background-color: #e6f4ea;
+}
+
+/* Excel Icon */
+.upload-box i {
+    font-size: 48px;
+}
+
+/* File Details Section */
+#fileDetails {
+    font-size: 14px;
+}
+
+/* Progress Bar */
+.progress {
+    height: 22px;
+    border-radius: 50px;
+}
+
+.progress-bar {
+    font-size: 12px;
+}
+
+/* Invalid State */
+.upload-box.invalid {
+    border-color: #dc3545;
+    background-color: #fff5f5;
+}
+
+.upload-box.valid {
+    border-color: #198754;
+}

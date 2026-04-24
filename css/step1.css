@@ -1,0 +1,64 @@
+/* ===============================
+   STEP 1 – COMPACT POLICY CARDS
+=============================== */
+
+.policy-group-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin: 15px 0 5px 5px;
+    color: #495057;
+}
+
+.policy-card-wrapper {
+    display: block;
+    cursor: pointer;
+}
+
+.policy-checkbox {
+    display: none;
+}
+
+.policy-card {
+    position: relative;
+    border: 1.5px solid #d6d9df;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #f8f9fb;
+    transition: all 0.2s ease;
+    font-size: 13px;
+    line-height: 1.3;
+    min-height: 70px;
+}
+
+.policy-card:hover {
+    border-color: #0d6efd;
+    background: #eef4ff;
+}
+
+.policy-title {
+    font-weight: 500;
+}
+
+.policy-sub {
+    font-size: 11px;
+    color: #6c757d;
+}
+
+.check-icon {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 14px;
+    color: #0d6efd;
+    opacity: 0;
+    transition: 0.2s ease;
+}
+
+.policy-checkbox:checked + .policy-card {
+    border-color: #0d6efd;
+    background: #dce8ff;
+}
+
+.policy-checkbox:checked + .policy-card .check-icon {
+    opacity: 1;
+}

@@ -1,0 +1,34 @@
+/* ===============================
+   UPLOAD REQUESTS HISTORY PANEL
+=============================== */
+
+/* Card Styling */
+.card-header {
+    font-weight: 500;
+    font-size: 15px;
+}
+
+/* Table Header */
+.history-table th {
+    background-color: #0d6efd;
+    color: #ffffff;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+/* Table Body */
+.history-table td {
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+/* Hover Effect */
+.history-table tbody tr:hover {
+    background-color: #f1f5ff;
+}
+
+/* Status Badges */
+.badge {
+    font-size: 12px;
+    padding: 6px 10px;
+}
