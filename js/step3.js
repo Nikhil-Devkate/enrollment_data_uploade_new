@@ -44,18 +44,37 @@ function updateSummary() {
     }
 }
 
-
-
-/////////////////////////////////////////////////////
-
 // ==============================
 // 🚀 INITIATE API
 // ==============================
+
+function mapPolicyType(type) {
+    switch (type) {
+        case "NON INSURANCE BENEFITS":
+            return "NIB";
+        case "ADDITIONAL INSURANCE BENEFITS":
+            return "AIB";
+        default:
+            return type; // keep as-is (GPA, GTL, GHI etc.)
+    }
+}
+
+
 async function initiateUpload(file, group, policy) {
 
     const payload = {
-        organization_id: "thynkSight",
-        policy_type: policy?.typeOfPolicy || "GMC",
+        organization_id: "ABC002",
+        
+        //policy_type: policy?.typeOfPolicy || "GMC",
+        // policy_type: AppState.selectedProducts.length > 0
+        // ? AppState.selectedProducts.map(p => mapPolicyType(p.typeOfPolicy))
+        // : ["GMC"],
+
+        policy_type: AppState.selectedProducts.length === 1
+        ? mapPolicyType(AppState.selectedProducts[0].typeOfPolicy)   // string
+        : AppState.selectedProducts.length > 1
+        ? AppState.selectedProducts.map(p => mapPolicyType(p.typeOfPolicy)) // array
+        : "GMC",
         filename: file.name,
         file_size: file.size,
         content_type: file.type,
@@ -69,6 +88,8 @@ async function initiateUpload(file, group, policy) {
         group_name: group?.groupName || "",
         master_group_name: group?.masterGroupName || ""
     };
+
+    console.log('INITIATE PAYLOAD : ', payload)
 
     const res = await fetch("https://employee.mybenefits360.in/AI_mb360_API/api/fileproxy/initiate", {
         method: "POST",
@@ -88,38 +109,6 @@ async function initiateUpload(file, group, policy) {
 
     return await res.json();
 }
-
-
-// ==============================
-// 📤 UPLOAD FILE (S3 / Blob)
-// ==============================
-// async function uploadFileToStorage(uploadUrl, file) {
-
-//     // const res = await fetch(uploadUrl, {
-//     //     method: "PUT",
-//     //     body: file
-//     // });
-
-//     // if (!res.ok) throw new Error("File upload failed");
-
-//     // return true;
-
-//     const res = await fetch(uploadUrl, {
-//         method: "PUT",
-//         headers: {
-//             "Content-Type": file.type || "application/octet-stream"
-//         },
-//         body: file
-//     });
-
-//     if (!res.ok) {
-//         const text = await res.text();
-//         console.log("Upload Error:", text);
-//         throw new Error("File upload failed");
-//     }
-
-//     return true;
-// }
 
 async function uploadFileToStorage(uploadUrl, file, uploadFields) {
 
@@ -202,7 +191,7 @@ async function waitForCompletion(fileId, retries = 10) {
         if (status.status === "COMPLETED") return status;
         if (status.status === "FAILED") throw new Error("Processing failed");
 
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 5000));
     }
 
     throw new Error("Timeout waiting for completion");
@@ -234,45 +223,115 @@ async function getDownloadUrl(fileId) {
     return await res.json();
 }
 
+
 async function downloadFile(fileId) {
 
-    const res = await getDownloadUrl(fileId);
+    //fileId = "file-19bc6cdea071";
+    try {
 
-    if (!res.download_url) {
-        throw new Error("Download URL missing");
+        const res = await fetch(
+            `https://employee.mybenefits360.in/AI_mb360_API/api/fileproxy/agent/${fileId}`
+        );
+
+        if (!res.ok) throw new Error("Agent API failed");
+
+        const data = await res.json();
+
+        //const agentList = Array.isArray(data) ? data : [data];
+
+        const agentList = data.agents || [];
+        const agent9 = agentList.find(a => a.agent_order === 9);
+        
+
+        if (!agent9) {
+            alert("File still processing...");
+            return;
+        }
+
+        if (agent9.status !== "COMPLETED") {
+            alert("File still processing...");
+            return;
+        }        
+
+        const details = agent9.details?.validation_details || [];
+
+        showDownloadOptions(details);
+
+
+    } catch (err) {
+        console.error(err);
+        alert("Download failed");
     }
-
-    window.open(res.download_url, "_blank");
 }
 
+function showDownloadOptions(details) {
 
-// ==============================
-// 🧩 RENDER FILE TABLE
-// ==============================
-// function renderFilesTable(data) {
+    const container = document.getElementById("downloadModalBody");
 
-//     const tbody = document.getElementById("filesTableBody");
-//     tbody.innerHTML = "";
+    let html = `
+        <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>Policy</th>
+                    <th>Type</th>
+                    <th>Success File</th>
+                    <th>Reject File</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
 
-//     data?.items?.forEach(file => {
+    details.forEach(item => {
 
-//         const row = `
-//             <tr>
-//                 <td>${file.file_id}</td>
-//                 <td>${file.filename}</td>
-//                 <td>${file.status}</td>
-//                 <td>
-//                     <button onclick="downloadFile(${file.file_id})" 
-//                             class="btn btn-sm btn-primary">
-//                         Download
-//                     </button>
-//                 </td>
-//             </tr>
-//         `;
+        // const successUrl = item.success_file?.download_url;
+        // const rejectUrl = item.reject_file?.download_url;
 
-//         tbody.innerHTML += row;
-//     });
-// }
+        const successUrl = item.download_details?.success_url;
+        const rejectUrl = item.download_details?.reject_url;
+
+
+        html += `
+            <tr>
+                <td>${item.policy_name}</td>
+                <td>${item.file_type}</td>
+
+                <td>
+                    ${successUrl
+                        ? `<a href="${successUrl}" target="_blank"
+                             class="btn btn-sm btn-success">
+                             Download
+                           </a>`
+                        : `<span class="text-muted">N/A</span>`
+                    }
+                </td>
+
+                <td>
+                    ${rejectUrl
+                        ? `<a href="${rejectUrl}" target="_blank"
+                             class="btn btn-sm btn-danger">
+                             Download
+                           </a>`
+                        : `<span class="text-muted">N/A</span>`
+                    }
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // ✅ Show modal
+    const modal = new bootstrap.Modal(document.getElementById("downloadModal"));
+    modal.show();
+}
+
 
 function renderFilesTable() {
 
@@ -342,7 +401,7 @@ function renderFilesTable() {
                 <td>
                     <button onclick="downloadFile('${file.id}')" 
                             class="btn btn-sm btn-primary">
-                        Download
+                        Download File
                     </button>
                 </td>
             </tr>
@@ -398,7 +457,7 @@ const pageSize = 10;
 
 async function loadFiles() {
     try {
-        const data = await getFilesList("thynkSight", 1);
+        const data = await getFilesList("ABC002", 1);
 
         allFiles = data.files || [];
 
@@ -504,115 +563,8 @@ const toastEl = document.getElementById("successToast");
 if (toastEl) {
     new bootstrap.Toast(toastEl, { delay: 3000 }).show();
 }
-
     } catch (err) {
         console.log(err);
         alert("Error submitting request.");
     }
 });
-
-// document.getElementById("confirmUploadBtn")
-//     .addEventListener("click", async function () {
-
-//         if (!AppState.currentGroup) {
-//             alert("Group not loaded.");
-//             return;
-//         }
-
-//         if (!AppState.selectedProducts.length) {
-//             alert("Please select at least one policy.");
-//             return;
-//         }
-
-//         if (!AppState.currentFiles.length) {
-//             alert("Please select at least one file.");
-//             return;
-//         }
-
-//         try {
-//             const formData = new FormData();
-
-//             // Basic fields
-//             formData.append("GroupChildSrNo", AppState.currentGroup.groupChildSrNo);
-//             formData.append("RequestBy", 1); // replace with logged-in user later
-
-//             // JSON fields
-//             formData.append(
-//                 "OrgPolicyJson",
-//                 JSON.stringify(AppState.currentGroup)
-//             );
-
-//             formData.append(
-//                 "SelPolicyJson",
-//                 JSON.stringify(AppState.selectedProducts)
-//             );
-
-//             // Multiple files
-//             AppState.currentFiles.forEach(file => {
-//                 formData.append("Files", file);
-//             });
-
-//             const response = await fetch(
-//                 "https://employee.mybenefits360.in/AI_mb360_API/api/uploadrequests",
-//                 {
-//                     method: "POST",
-//                     body: formData
-//                 }
-//             );
-
-//             if (!response.ok) {
-//                 throw new Error("Upload failed");
-//             }
-
-//             const result = await response.json();
-
-//             // 1️⃣ Clear AppState
-//             AppState.selectedProducts = [];
-//             AppState.currentFiles = [];
-
-//             // 2️⃣ Clear Step 1 checkboxes
-//             document.querySelectorAll('.policy-checkbox')
-//             .forEach(cb => cb.checked = false);
-
-//             document.getElementById("selectedCount").innerText = "0 Selected";
-
-//             // 3️⃣ Clear Step 2 file table
-//             const fileTableBody = document.getElementById("fileTableBody");
-//             if (fileTableBody) fileTableBody.innerHTML = "";
-
-//             const fileListContainer = document.getElementById("fileListContainer");
-//             if (fileListContainer) fileListContainer.classList.add("d-none");
-
-//             // 4️⃣ Clear Step 3 summary
-//             updateSummary();
-
-//             // 5️⃣ Disable Step 2 & Step 3
-//             document.getElementById("fileAccordionBtn")?.setAttribute("disabled", true);
-//             document.getElementById("summaryAccordionBtn")?.setAttribute("disabled", true);
-
-//             // 7️⃣ Close Step 3 accordion
-//             const summaryCollapseEl = document.getElementById("summaryCollapse");
-
-//             if (summaryCollapseEl) {
-//             const bsCollapse = bootstrap.Collapse.getInstance(summaryCollapseEl)
-//             || new bootstrap.Collapse(summaryCollapseEl, { toggle: false });
-
-//             bsCollapse.hide();
-//             }
-
-//             // Show Bootstrap Toast
-//             const toastEl = document.getElementById("successToast");
-
-//             if (toastEl) {
-//             const toast = new bootstrap.Toast(toastEl, {
-//             delay: 3000
-//             });
-
-//             toast.show();
-//             }
-
-//         } catch (error) {
-//             console.log(error);
-//             alert("Error submitting request.");
-//         }
-//     });

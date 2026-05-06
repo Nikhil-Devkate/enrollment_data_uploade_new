@@ -92,6 +92,8 @@ function renderPolicies(policies) {
         });
     });
 
+    loadFiles();
+
     attachSelectionLogic();
 }
 
