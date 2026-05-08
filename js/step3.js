@@ -64,7 +64,7 @@ async function initiateUpload(file, group, policy) {
 
     const payload = {
         organization_id: "ABC002",
-        
+
         //policy_type: policy?.typeOfPolicy || "GMC",
         // policy_type: AppState.selectedProducts.length > 0
         // ? AppState.selectedProducts.map(p => mapPolicyType(p.typeOfPolicy))
@@ -80,7 +80,7 @@ async function initiateUpload(file, group, policy) {
         content_type: file.type,
         tags: {},
         custom_metadata: {},
-        batch_id: "batch_001",
+        batch_id: "",
         batch_sequence: 1,
         batch_total: 1,
         group_id: group?.groupChildSrNo || 0,
@@ -399,10 +399,14 @@ function renderFilesTable() {
                 <td>${(file.file_size_bytes / 1024).toFixed(2)}</td>
                 <td>${new Date(file.created_at).toLocaleString()}</td>
                 <td>
-                    <button onclick="downloadFile('${file.id}')" 
-                            class="btn btn-sm btn-primary">
-                        Download File
-                    </button>
+                    <span 
+                        title="${file.status !== 'COMPLETED' ? 'Download available only for completed files' : ''}"
+                        style="${file.status !== 'COMPLETED' ? 'cursor:not-allowed; display:inline-block;' : ''}">
+                        <button onclick="${file.status === 'COMPLETED' ? `downloadFile('${file.id}')` : ''}" 
+                            class="btn btn-sm btn-primary" ${file.status !== 'COMPLETED' ? 'disabled' : ''}>
+                            Download File
+                        </button>
+                    </span>
                 </td>
             </tr>
         `;
