@@ -59,17 +59,27 @@ function mapPolicyType(type) {
     }
 }
 
+function formatPolicyDate(dateStr) {
+
+    if (!dateStr || dateStr === "-") return "";
+
+    const parts = dateStr.split("/");
+
+    if (parts.length !== 3) return "";
+
+    let [day, month, year] = parts;
+
+    day = day.padStart(2, '0');
+    month = month.padStart(2, '0');
+
+    return `${day}-${month}-${year}`;
+}
+
 
 async function initiateUpload(file, group, policy) {
 
     const payload = {
         organization_id: "ABC002",
-
-        //policy_type: policy?.typeOfPolicy || "GMC",
-        // policy_type: AppState.selectedProducts.length > 0
-        // ? AppState.selectedProducts.map(p => mapPolicyType(p.typeOfPolicy))
-        // : ["GMC"],
-
         policy_type: AppState.selectedProducts.length === 1
         ? mapPolicyType(AppState.selectedProducts[0].typeOfPolicy)   // string
         : AppState.selectedProducts.length > 1
@@ -78,18 +88,35 @@ async function initiateUpload(file, group, policy) {
         filename: file.name,
         file_size: file.size,
         content_type: file.type,
-        tags: {},
-        custom_metadata: {},
-        batch_id: "",
-        batch_sequence: 1,
-        batch_total: 1,
-        group_id: group?.groupChildSrNo || 0,
+        // tags: {},
+        // batch_id: "",
+        // batch_sequence: 1,
+        // batch_total: 1,
+        // group_id: group?.groupChildSrNo || 0,
         group_code: group?.groupCode || "",
         group_name: group?.groupName || "",
-        master_group_name: group?.masterGroupName || ""
+        master_group_name: group?.masterGroupName || "",
+        custom_metadata: {
+        policy_dates: AppState.selectedProducts
+            .filter(p => {
+                const mappedType = mapPolicyType(p.typeOfPolicy);
+                return mappedType !== "AIB" && mappedType !== "NIB";
+            })
+            .reduce((acc, p) => {
+
+                const policyCode = mapPolicyType(p.typeOfPolicy);
+                acc[policyCode] = {
+                    policyCommencementDate: formatPolicyDate(p.policyCommencementDate),
+                    policyValidUpto: formatPolicyDate(p.policyValidUpto)
+                };
+
+                return acc;
+
+            }, {})
+    },
     };
 
-    console.log('INITIATE PAYLOAD : ', payload)
+    console.log('INITIATE PAYLOAD : ', JSON.stringify(payload));
 
     const res = await fetch("https://employee.mybenefits360.in/AI_mb360_API/api/fileproxy/initiate", {
         method: "POST",
