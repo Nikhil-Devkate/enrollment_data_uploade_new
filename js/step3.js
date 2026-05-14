@@ -96,15 +96,17 @@ async function initiateUpload(file, group, policy) {
         group_code: group?.groupCode || "",
         group_name: group?.groupName || "",
         master_group_name: group?.masterGroupName || "",
-        custom_metadata: {
-        policy_dates: AppState.selectedProducts
+        custom_metadata: (() => {
+        const policyDates = AppState.selectedProducts
             .filter(p => {
                 const mappedType = mapPolicyType(p.typeOfPolicy);
+
                 return mappedType !== "AIB" && mappedType !== "NIB";
             })
             .reduce((acc, p) => {
 
                 const policyCode = mapPolicyType(p.typeOfPolicy);
+
                 acc[policyCode] = {
                     policyCommencementDate: formatPolicyDate(p.policyCommencementDate),
                     policyValidUpto: formatPolicyDate(p.policyValidUpto)
@@ -112,8 +114,13 @@ async function initiateUpload(file, group, policy) {
 
                 return acc;
 
-            }, {})
-    },
+            }, {});
+
+            return Object.keys(policyDates).length > 0
+                ? { policy_dates: policyDates }
+                : {};
+
+            })()
     };
 
     console.log('INITIATE PAYLOAD : ', JSON.stringify(payload));
@@ -499,8 +506,6 @@ async function loadFiles() {
         console.log(err);
     }
 }
-
-////////////////////////////////////////////////////
 
 // ==============================
 // 🎯 MAIN BUTTON (CONFIRM UPLOAD)
