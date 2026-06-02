@@ -78,46 +78,41 @@ function formatPolicyDate(dateStr) {
 
 async function initiateUpload(file, group, policy,batchId = "",batchSequence = 1,batchTotal = 1) {
 
-    const policyTypes = AppState.selectedProducts.length === 1
-        ? mapPolicyType(AppState.selectedProducts[0].typeOfPolicy)
-        : AppState.selectedProducts.length > 1
-            ? AppState.selectedProducts.map(p => mapPolicyType(p.typeOfPolicy))
-            : "GMC";
+    const policyTypes = AppState.selectedProducts.length === 1 ? (["GHI", "GPA", "GTL"].includes(mapPolicyType(AppState.selectedProducts[0].typeOfPolicy)) ? AppState.selectedProducts[0].benefitName : mapPolicyType(AppState.selectedProducts[0].typeOfPolicy)) : AppState.selectedProducts.length > 1 ? AppState.selectedProducts.map(p => { const mappedType = mapPolicyType(p.typeOfPolicy); return ["GHI", "GPA", "GTL"].includes(mappedType) ? p.benefitName : mappedType; }) : "GHI";
 
     // POLICY DATES (Exclude AIB/NIB)
     const policyDates = AppState.selectedProducts
-        .filter(p => {
-            const mappedType = mapPolicyType(p.typeOfPolicy);
+    .filter(p => {
+        const mappedType = mapPolicyType(p.typeOfPolicy);
 
-            return mappedType !== "AIB" && mappedType !== "NIB";
-        })
-        .reduce((acc, p) => {
-
-            const policyCode = mapPolicyType(p.typeOfPolicy);
-
-            acc[policyCode] = {
-                policyCommencementDate: formatPolicyDate(p.policyCommencementDate),
-                policyValidUpto: formatPolicyDate(p.policyValidUpto)
-            };
-
-            return acc;
-
-        }, {});
-
-    // POLICY SR NOS
-    const policySrNos = AppState.selectedProducts
+        return mappedType !== "AIB" && mappedType !== "NIB";
+    })
     .reduce((acc, p) => {
 
-        const policyCode = mapPolicyType(p.typeOfPolicy);
+        const policyCode = mapPolicyType(p.benefitName);
 
-        // AIB / NIB -> mbCustPrgsBnftsIdSrNo
-        // Insurance policies -> oeGrpBasInfSrNo
-        acc[policyCode] =
-            (policyCode === "AIB" || policyCode === "NIB")
-                ? (p.mbCustPrgsBnftsIdSrNo || "")
-                : (p.oeGrpBasInfSrNo || "");
+        acc[policyCode] = {
+            policyCommencementDate: formatPolicyDate(p.policyCommencementDate),
+            policyValidUpto: formatPolicyDate(p.policyValidUpto)
+        };
 
         return acc;
+
+    }, {});
+
+    // POLICY SR NOS
+    const policySrNos = AppState.selectedProducts.reduce((acc, p) => {
+
+    const policyCode = mapPolicyType(p.typeOfPolicy);
+
+    if (policyCode === "AIB" || policyCode === "NIB") {
+        acc[policyCode] = p.mbCustPrgsBnftsIdSrNo || "";
+    }
+    else {
+        acc[p.benefitName] = p.oeGrpBasInfSrNo || "";
+    }
+
+    return acc;
 
     }, {});
 
