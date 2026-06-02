@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", function () {
 async function fetchPolicies() {
 
     try {
-        const groupChildSrNo = 3200; // 3200,3236,3665 // later we can make dynamic
+        const groupChildSrNo = 4249; // 3200,3236,3665 // later we can make dynamic
 
         const response = await fetch(
             `https://employee.mybenefits360.in/AI_mb360_API/api/groups/${groupChildSrNo}`
@@ -110,6 +110,89 @@ function attachSelectionLogic() {
                 if (c.checked) {
                     const policyData = JSON.parse(c.dataset.policy);
                     AppState.selectedProducts.push(policyData);
+                }
+            });
+
+             // CATEGORY CHECKS
+            const hasInsurance = AppState.selectedProducts.some(p =>
+                ["GHI", "GPA", "GTL", "GMC"].includes(p.typeOfPolicy)
+            );
+
+            const selectedAIBCount = AppState.selectedProducts.filter(p =>
+                p.typeOfPolicy === "ADDITIONAL INSURANCE BENEFITS"
+            ).length;
+
+            const selectedNIBCount = AppState.selectedProducts.filter(p =>
+                p.typeOfPolicy === "NON INSURANCE BENEFITS"
+            ).length;
+
+            const hasBenefits = selectedAIBCount > 0 || selectedNIBCount > 0;
+
+            // ENABLE / DISABLE
+            checkboxes.forEach(c => {
+
+                const policyData = JSON.parse(c.dataset.policy);
+
+                const isInsurance =
+                    ["GHI", "GPA", "GTL", "GMC"]
+                        .includes(policyData.typeOfPolicy);
+
+                const isAIB =
+                    policyData.typeOfPolicy === "ADDITIONAL INSURANCE BENEFITS";
+
+                const isNIB =
+                    policyData.typeOfPolicy === "NON INSURANCE BENEFITS";
+
+                // INSURANCE SELECTED  DISABLE BENEFITS
+                if (hasInsurance && (isAIB || isNIB) && !c.checked) {
+
+                    c.disabled = true;
+
+                    c.closest(".policy-card-wrapper")
+                        .classList.add("disabled-policy");
+                }
+
+                // BENEFITS SELECTED  DISABLE INSURANCE
+                else if (hasBenefits && isInsurance && !c.checked) {
+
+                    c.disabled = true;
+
+                    c.closest(".policy-card-wrapper")
+                        .classList.add("disabled-policy");
+                }
+
+                // ONLY ONE AIB ALLOWED
+                else if (
+                    selectedAIBCount >= 1 &&
+                    isAIB &&
+                    !c.checked
+                ) {
+
+                    c.disabled = true;
+
+                    c.closest(".policy-card-wrapper")
+                        .classList.add("disabled-policy");
+                }
+
+                // ONLY ONE NIB ALLOWED
+                else if (
+                    selectedNIBCount >= 1 &&
+                    isNIB &&
+                    !c.checked
+                ) {
+
+                    c.disabled = true;
+
+                    c.closest(".policy-card-wrapper")
+                        .classList.add("disabled-policy");
+                }
+
+                else {
+
+                    c.disabled = false;
+
+                    c.closest(".policy-card-wrapper")
+                        .classList.remove("disabled-policy");
                 }
             });
 

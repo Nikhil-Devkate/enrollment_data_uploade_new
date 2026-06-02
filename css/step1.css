@@ -62,3 +62,8 @@
 .policy-checkbox:checked + .policy-card .check-icon {
     opacity: 1;
 }
+
+.disabled-policy {
+    opacity: 0.5;
+    pointer-events: none;
+}

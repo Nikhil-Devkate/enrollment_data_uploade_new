@@ -76,51 +76,79 @@ function formatPolicyDate(dateStr) {
 }
 
 
-async function initiateUpload(file, group, policy) {
+async function initiateUpload(file, group, policy,batchId = "",batchSequence = 1,batchTotal = 1) {
+
+    const policyTypes = AppState.selectedProducts.length === 1
+        ? mapPolicyType(AppState.selectedProducts[0].typeOfPolicy)
+        : AppState.selectedProducts.length > 1
+            ? AppState.selectedProducts.map(p => mapPolicyType(p.typeOfPolicy))
+            : "GMC";
+
+    // POLICY DATES (Exclude AIB/NIB)
+    const policyDates = AppState.selectedProducts
+        .filter(p => {
+            const mappedType = mapPolicyType(p.typeOfPolicy);
+
+            return mappedType !== "AIB" && mappedType !== "NIB";
+        })
+        .reduce((acc, p) => {
+
+            const policyCode = mapPolicyType(p.typeOfPolicy);
+
+            acc[policyCode] = {
+                policyCommencementDate: formatPolicyDate(p.policyCommencementDate),
+                policyValidUpto: formatPolicyDate(p.policyValidUpto)
+            };
+
+            return acc;
+
+        }, {});
+
+    // POLICY SR NOS
+    const policySrNos = AppState.selectedProducts
+    .reduce((acc, p) => {
+
+        const policyCode = mapPolicyType(p.typeOfPolicy);
+
+        // AIB / NIB -> mbCustPrgsBnftsIdSrNo
+        // Insurance policies -> oeGrpBasInfSrNo
+        acc[policyCode] =
+            (policyCode === "AIB" || policyCode === "NIB")
+                ? (p.mbCustPrgsBnftsIdSrNo || "")
+                : (p.oeGrpBasInfSrNo || "");
+
+        return acc;
+
+    }, {});
 
     const payload = {
         organization_id: "ABC002",
-        policy_type: AppState.selectedProducts.length === 1
-        ? mapPolicyType(AppState.selectedProducts[0].typeOfPolicy)   // string
-        : AppState.selectedProducts.length > 1
-        ? AppState.selectedProducts.map(p => mapPolicyType(p.typeOfPolicy)) // array
-        : "GMC",
+        // policy_type: AppState.selectedProducts.length === 1
+        // ? mapPolicyType(AppState.selectedProducts[0].typeOfPolicy)   // string
+        // : AppState.selectedProducts.length > 1
+        // ? AppState.selectedProducts.map(p => mapPolicyType(p.typeOfPolicy)) // array
+        // : "GMC",
+        policy_type: policyTypes,
         filename: file.name,
         file_size: file.size,
         content_type: file.type,
         // tags: {},
-        // batch_id: "",
-        // batch_sequence: 1,
-        // batch_total: 1,
-        // group_id: group?.groupChildSrNo || 0,
+        batch_id: batchId,
+        batch_sequence: batchSequence,
+        batch_total: batchTotal,
+        group_id: group?.groupChildSrNo || 0,
         group_code: group?.groupCode || "",
         group_name: group?.groupName || "",
         master_group_name: group?.masterGroupName || "",
-        custom_metadata: (() => {
-        const policyDates = AppState.selectedProducts
-            .filter(p => {
-                const mappedType = mapPolicyType(p.typeOfPolicy);
+        custom_metadata: {
+            group_id: group?.groupChildSrNo || 0,
 
-                return mappedType !== "AIB" && mappedType !== "NIB";
-            })
-            .reduce((acc, p) => {
+            ...(Object.keys(policyDates).length > 0 && {
+                policy_dates: policyDates
+            }),
 
-                const policyCode = mapPolicyType(p.typeOfPolicy);
-
-                acc[policyCode] = {
-                    policyCommencementDate: formatPolicyDate(p.policyCommencementDate),
-                    policyValidUpto: formatPolicyDate(p.policyValidUpto)
-                };
-
-                return acc;
-
-            }, {});
-
-            return Object.keys(policyDates).length > 0
-                ? { policy_dates: policyDates }
-                : {};
-
-            })()
+            policy_sr_nos: policySrNos
+        }
     };
 
     console.log('INITIATE PAYLOAD : ', JSON.stringify(payload));
@@ -235,9 +263,9 @@ async function waitForCompletion(fileId, retries = 10) {
 // ==============================
 // 📂 FILE LIST API
 // ==============================
-async function getFilesList(organizationId, status = 1) {
+async function getFilesList(organizationId, groups) {
 
-    const res = await fetch(`https://employee.mybenefits360.in/AI_mb360_API/api/fileproxy/list?organization_id=${organizationId}&status=${status}`);
+    const res = await fetch(`https://employee.mybenefits360.in/AI_mb360_API/api/fileproxy/list?organization_id=${organizationId}&group_id=${groups.groupChildSrNo}`);
 
     if (!res.ok) throw new Error("List fetch failed");
 
@@ -289,16 +317,16 @@ async function downloadFile(fileId) {
 
         const details = agent9.details?.validation_details || [];
 
-        showDownloadOptions(details);
+        showDownloadOptions(details,AppState.currentGroup);
 
 
     } catch (err) {
-        console.error(err);
+        console.log(err);
         alert("Download failed");
     }
 }
 
-function showDownloadOptions(details) {
+function showDownloadOptions(details,groups) {
 
     const container = document.getElementById("downloadModalBody");
 
@@ -311,6 +339,7 @@ function showDownloadOptions(details) {
                     <th>Type</th>
                     <th>Success File</th>
                     <th>Reject File</th>
+                    <th>Push File</th>
                 </tr>
             </thead>
             <tbody>
@@ -348,6 +377,23 @@ function showDownloadOptions(details) {
                            </a>`
                         : `<span class="text-muted">N/A</span>`
                     }
+                </td>
+
+                <td>
+                    ${successUrl
+                        ? `<a 
+                        class="btn btn-sm btn-primary"
+                        onclick="pushFile(
+                            ${groups.groupChildSrNo},
+                            ${item.policysrno},
+                            '${successUrl}',
+                            '${item.policy_name}',
+                            '${item.file_type}'
+                        )">
+                        Push File
+                    </a>`
+                        : `<span class="text-muted">N/A</span>`
+                    }                    
                 </td>
             </tr>
         `;
@@ -436,7 +482,7 @@ function renderFilesTable() {
                     <span 
                         title="${file.status !== 'COMPLETED' ? 'Download available only for completed files' : ''}"
                         style="${file.status !== 'COMPLETED' ? 'cursor:not-allowed; display:inline-block;' : ''}">
-                        <button onclick="${file.status === 'COMPLETED' ? `downloadFile('${file.id}')` : ''}" 
+                        <button onclick="${file.status === 'COMPLETED' ? `downloadFile('${file.workflow_id}')` : ''}" 
                             class="btn btn-sm btn-primary" ${file.status !== 'COMPLETED' ? 'disabled' : ''}>
                             Download File
                         </button>
@@ -495,7 +541,7 @@ const pageSize = 10;
 
 async function loadFiles() {
     try {
-        const data = await getFilesList("ABC002", 1);
+        const data = await getFilesList("ABC002",AppState.currentGroup,);
 
         allFiles = data.files || [];
 
@@ -530,13 +576,31 @@ document.getElementById("confirmUploadBtn")
 
     try {
 
-        for (const file of AppState.currentFiles) {
+        const batchId = `BATCH_${Date.now()}`;
+        const batchTotal = AppState.currentFiles.length;
+
+        // for (const file of AppState.currentFiles) {
+
+        //     // 1️⃣ INITIATE
+        //     const init = await initiateUpload(
+        //         file,
+        //         AppState.currentGroup,
+        //         AppState.selectedProducts[0]
+        //     );
+
+
+        for (let i = 0; i < AppState.currentFiles.length; i++) {
+
+            const file = AppState.currentFiles[i];
 
             // 1️⃣ INITIATE
             const init = await initiateUpload(
                 file,
                 AppState.currentGroup,
-                AppState.selectedProducts[0]
+                AppState.selectedProducts[0],
+                batchId,
+                i + 1,
+                batchTotal
             );
 
             const fileId = init.file_id || init.id;
